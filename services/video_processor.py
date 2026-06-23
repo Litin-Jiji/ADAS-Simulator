@@ -1,7 +1,7 @@
 """
 video_processor.py
 Orchestrates the full Milestone 1 pipeline:
-  Frame → Tracker → Draw → Display / Save
+  Frame → ROI → Tracker → Draw → Display / Save
 """
 
 import cv2
@@ -16,17 +16,11 @@ from utils.fps import FPSCounter
 
 class VideoProcessor:
     def __init__(self, source: str | int, save_output: bool = False):
-        """
-        source      : path to video file, or 0 for webcam
-        save_output : write annotated video to outputs/
-        """
         self.source      = source
         self.save_output = save_output
         self.tracker     = Tracker()
         self.fps_counter = FPSCounter()
         self.writer      = None
-
-    # ── internal helpers ───────────────────────────────────────────────────
 
     def _open_capture(self) -> cv2.VideoCapture:
         cap = cv2.VideoCapture(self.source)
@@ -46,8 +40,6 @@ class VideoProcessor:
         print(f"[INFO] Saving output to {out_path}")
         return cv2.VideoWriter(str(out_path), fourcc, fps, (w, h))
 
-    # ── public ────────────────────────────────────────────────────────────
-
     def run(self):
         cap = self._open_capture()
         if self.save_output:
@@ -63,17 +55,34 @@ class VideoProcessor:
                 break
 
             frame_num += 1
+            h, w = frame.shape[:2]
 
-            # ── Core pipeline ──────────────────────────────────────────
-            tracked = self.tracker.track(frame)
-            fps     = self.fps_counter.tick()
+            # ── ROI: ignore car interior (top 35%) and bonnet (bottom 15%) ──
+            roi_top    = int(h * 0.35)
+            roi_bottom = int(h * 0.85)
+            roi_frame  = frame[roi_top:roi_bottom, :]
 
-            # ── Draw ───────────────────────────────────────────────────
+            # ── Core pipeline ──────────────────────────────────────────────
+            tracked_roi = self.tracker.track(roi_frame)
+            fps         = self.fps_counter.tick()
+
+            # Shift bbox + history y-coords back to full-frame space
+            tracked = []
+            for obj in tracked_roi:
+                obj["bbox"][1] += roi_top
+                obj["bbox"][3] += roi_top
+                if obj.get("history"):
+                    obj["history"] = [(x, y + roi_top) for x, y in obj["history"]]
+                cx, cy = obj["centroid"]
+                obj["centroid"] = (cx, cy + roi_top)
+                tracked.append(obj)
+
+            # ── Draw ───────────────────────────────────────────────────────
             draw_hud_bar(frame, len(tracked))
             draw_tracked_objects(frame, tracked)
             draw_stats_panel(frame, tracked, fps, frame_num)
 
-            # ── Output ────────────────────────────────────────────────
+            # ── Output ─────────────────────────────────────────────────────
             if self.writer:
                 self.writer.write(frame)
 

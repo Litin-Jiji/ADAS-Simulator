@@ -122,9 +122,6 @@ def draw_stats_panel(frame: np.ndarray, tracked: list[dict],
         y = py + pad + i * lh + lh // 2
         cv2.putText(frame, key, (px + 8, y),
                     font, scale, (180, 180, 180), 1, cv2.LINE_AA)
-        cv2.putText(frame, val, (px + panel_w - 8, y),
-                    font, scale, color, 1, cv2.LINE_AA)
-        # Right-align value
         (vw, _), _ = cv2.getTextSize(val, font, scale, 1)
         cv2.putText(frame, val, (px + panel_w - 8 - vw, y),
                     font, scale, color, 1, cv2.LINE_AA)
