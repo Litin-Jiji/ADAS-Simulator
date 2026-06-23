@@ -13,7 +13,7 @@ YOLO_MODEL  = "yolo11n.pt"   # auto-downloaded on first run
 DEVICE      = "cuda"         # "cuda" | "cpu" | "mps"
 
 # ── Detection ──────────────────────────────────────────────────────────────
-CONF_THRESHOLD  = 0.40
+CONF_THRESHOLD  = 0.30
 IOU_THRESHOLD   = 0.45
 
 # COCO classes we care about (id: label)
@@ -38,7 +38,7 @@ CLASS_COLORS = {
 
 # ── Tracker (ByteTrack via Ultralytics) ────────────────────────────────────
 TRACK_BUFFER    = 30   # frames to keep a lost track alive
-MIN_BOX_AREA    = 400  # px², ignore tiny detections
+MIN_BOX_AREA    = 200  # px², ignore tiny detections
 
 # ── Video processing ───────────────────────────────────────────────────────
 FRAME_WIDTH     = 1280

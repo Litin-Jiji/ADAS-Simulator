@@ -58,8 +58,8 @@ class VideoProcessor:
             h, w = frame.shape[:2]
 
             # ── ROI: ignore car interior (top 35%) and bonnet (bottom 15%) ──
-            roi_top    = int(h * 0.35)
-            roi_bottom = int(h * 0.85)
+            roi_top    = int(h * 0.10)
+            roi_bottom = int(h * 0.95)
             roi_frame  = frame[roi_top:roi_bottom, :]
 
             # ── Core pipeline ──────────────────────────────────────────────
