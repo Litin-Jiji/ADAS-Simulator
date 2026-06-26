@@ -120,8 +120,10 @@ def draw_stats_panel(frame: np.ndarray, tracked: list[dict],
 
     for i, (key, val, color) in enumerate(lines):
         y = py + pad + i * lh + lh // 2
+        # Key on the left
         cv2.putText(frame, key, (px + 8, y),
                     font, scale, (180, 180, 180), 1, cv2.LINE_AA)
+        # Value right-aligned (draw once only)
         (vw, _), _ = cv2.getTextSize(val, font, scale, 1)
         cv2.putText(frame, val, (px + panel_w - 8 - vw, y),
                     font, scale, color, 1, cv2.LINE_AA)
@@ -144,3 +146,72 @@ def draw_hud_bar(frame: np.ndarray, total_tracked: int) -> None:
     (tw, _), _ = cv2.getTextSize(right_text, font, scale, 1)
     cv2.putText(frame, right_text, (w - tw - 10, 21),
                 font, scale, (100, 255, 150), 1, cv2.LINE_AA)
+
+
+# ── Lane drawing ───────────────────────────────────────────────────────────
+
+def draw_lanes(frame: np.ndarray, lane_result) -> None:
+    """
+    Draw left/right lane lines, filled polygon between them,
+    and the lane status panel.
+    """
+    if lane_result is None:
+        return
+
+    overlay = frame.copy()
+    h, w = frame.shape[:2]
+
+    left  = lane_result.left_line
+    right = lane_result.right_line
+
+    # Filled polygon between lanes
+    if left and right:
+        pts = np.array([
+            [left[0],  left[1]],
+            [left[2],  left[3]],
+            [right[2], right[3]],
+            [right[0], right[1]],
+        ], dtype=np.int32)
+        color = (0, 80, 0) if not lane_result.warning else (0, 0, 120)
+        cv2.fillPoly(overlay, [pts], color)
+        frame[:] = cv2.addWeighted(overlay, 0.3, frame, 0.7, 0)
+
+    # Lane lines
+    line_color = (0, 255, 80) if not lane_result.warning else (0, 80, 255)
+    if left:
+        cv2.line(frame, (left[0], left[1]), (left[2], left[3]),
+                 line_color, 4, cv2.LINE_AA)
+    if right:
+        cv2.line(frame, (right[0], right[1]), (right[2], right[3]),
+                 line_color, 4, cv2.LINE_AA)
+
+    # Lane status panel — bottom right
+    font   = cv2.FONT_HERSHEY_SIMPLEX
+    scale  = 0.52
+    pad    = 10
+    panel_w, panel_h = 200, 64
+    px = w - panel_w - 14
+    py = h - panel_h - 14
+
+    frame[:] = _alpha_rect(frame, px, py, px + panel_w, py + panel_h,
+                           (20, 20, 20), 0.65)
+    cv2.rectangle(frame, (px, py), (px + panel_w, py + panel_h), (80, 80, 80), 1)
+
+    # Status text
+    status_color = (0, 255, 80) if lane_result.status == "Centered" else (0, 80, 255)
+    cv2.putText(frame, "LANE STATUS", (px + 8, py + 18),
+                font, 0.42, (150, 150, 150), 1, cv2.LINE_AA)
+    cv2.putText(frame, lane_result.status, (px + 8, py + 38),
+                font, scale, status_color, 1, cv2.LINE_AA)
+
+    offset_str = f"Offset: {lane_result.offset_cm:+.1f} cm"
+    cv2.putText(frame, offset_str, (px + 8, py + 56),
+                font, 0.44, (180, 180, 180), 1, cv2.LINE_AA)
+
+    # Warning flash bar at top
+    if lane_result.warning:
+        warn_overlay = frame.copy()
+        cv2.rectangle(warn_overlay, (0, 32), (w, 58), (0, 0, 180), -1)
+        frame[:] = cv2.addWeighted(warn_overlay, 0.55, frame, 0.45, 0)
+        cv2.putText(frame, f"⚠  LANE DEPARTURE  —  {lane_result.status.upper()}",
+                    (w // 2 - 180, 50), font, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
