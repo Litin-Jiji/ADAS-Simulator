@@ -213,5 +213,65 @@ def draw_lanes(frame: np.ndarray, lane_result) -> None:
         warn_overlay = frame.copy()
         cv2.rectangle(warn_overlay, (0, 32), (w, 58), (0, 0, 180), -1)
         frame[:] = cv2.addWeighted(warn_overlay, 0.55, frame, 0.45, 0)
-        cv2.putText(frame, f"⚠  LANE DEPARTURE  —  {lane_result.status.upper()}",
+        cv2.putText(frame, f"!!  LANE DEPARTURE  --  {lane_result.status.upper()}",
                     (w // 2 - 180, 50), font, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+
+
+# ── Depth overlay ──────────────────────────────────────────────────────────
+
+def draw_depth_labels(frame: np.ndarray, tracked: list[dict]) -> None:
+    """
+    Draw distance estimates below each tracked object's bounding box.
+    Called after draw_tracked_objects so it renders on top.
+    """
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    for obj in tracked:
+        dist = obj.get("distance_m", -1)
+        if dist < 0:
+            continue
+
+        x1, y1, x2, y2 = obj["bbox"]
+        cx = (x1 + x2) // 2
+
+        # Colour by distance: green=safe, yellow=caution, red=danger
+        if dist > 15:
+            color = (0, 255, 80)
+        elif dist > 7:
+            color = (0, 200, 255)
+        else:
+            color = (0, 60, 255)
+
+        label = f"{dist:.1f} m"
+        (tw, th), _ = cv2.getTextSize(label, font, 0.52, 1)
+        tx = cx - tw // 2
+        ty = y2 + th + 6
+
+        # Background pill
+        cv2.rectangle(frame, (tx - 4, ty - th - 2),
+                      (tx + tw + 4, ty + 4), (20, 20, 20), -1)
+        cv2.putText(frame, label, (tx, ty),
+                    font, 0.52, color, 1, cv2.LINE_AA)
+
+
+def draw_depth_map_thumbnail(frame: np.ndarray,
+                              depth_map: np.ndarray) -> None:
+    """
+    Show a small colourised depth map thumbnail in the top-right corner.
+    """
+    h, w = frame.shape[:2]
+    thumb_w, thumb_h = 180, 100
+
+    # Normalise and colourise
+    norm = cv2.normalize(depth_map, None, 0, 255,
+                         cv2.NORM_MINMAX).astype(np.uint8)
+    coloured = cv2.applyColorMap(norm, cv2.COLORMAP_INFERNO)
+    thumb = cv2.resize(coloured, (thumb_w, thumb_h))
+
+    # Paste into top-right
+    tx, ty = w - thumb_w - 10, 40
+    frame[ty:ty + thumb_h, tx:tx + thumb_w] = thumb
+    cv2.rectangle(frame, (tx, ty), (tx + thumb_w, ty + thumb_h),
+                  (80, 80, 80), 1)
+    cv2.putText(frame, "DEPTH MAP", (tx + 4, ty + thumb_h + 14),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38,
+                (150, 150, 150), 1, cv2.LINE_AA)
