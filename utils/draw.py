@@ -275,3 +275,99 @@ def draw_depth_map_thumbnail(frame: np.ndarray,
     cv2.putText(frame, "DEPTH MAP", (tx + 4, ty + thumb_h + 14),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.38,
                 (150, 150, 150), 1, cv2.LINE_AA)
+
+
+# ── Collision Risk HUD ─────────────────────────────────────────────────────
+
+# Risk colours BGR
+RISK_COLORS = {
+    "LOW":      (0,   200,  80),
+    "MEDIUM":   (0,   200, 255),
+    "HIGH":     (0,   80,  255),
+    "CRITICAL": (0,   0,   255),
+}
+
+def draw_risk_overlays(frame: np.ndarray, risk_results: list) -> None:
+    """
+    Draw risk-coloured box borders and TTC labels on each risky object.
+    LOW risk objects get no extra overlay (already handled by draw_tracked_objects).
+    """
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    for r in risk_results:
+        if r.risk == "LOW":
+            continue
+
+        x1, y1, x2, y2 = r.bbox
+        color = RISK_COLORS.get(r.risk, (200, 200, 200))
+
+        # Thicker coloured border for risky objects
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
+
+        # TTC label above box
+        if r.ttc < 99:
+            ttc_label = f"TTC {r.ttc:.1f}s"
+        else:
+            ttc_label = "Closing"
+
+        (tw, th), _ = cv2.getTextSize(ttc_label, font, 0.48, 1)
+        tx = (x1 + x2) // 2 - tw // 2
+        ty = y1 - 22
+        cv2.rectangle(frame, (tx - 3, ty - th - 2),
+                      (tx + tw + 3, ty + 4), color, -1)
+        cv2.putText(frame, ttc_label, (tx, ty),
+                    font, 0.48, (10, 10, 10), 1, cv2.LINE_AA)
+
+
+def draw_collision_warning(frame: np.ndarray, warning) -> None:
+    """
+    Full-width warning banner for HIGH / CRITICAL risk.
+    Sits just below the HUD bar.
+    """
+    if not warning.active or warning.risk == "MEDIUM":
+        # Medium: just show in risk panel, no banner
+        _draw_risk_panel(frame, warning)
+        return
+
+    h, w = frame.shape[:2]
+    color = RISK_COLORS.get(warning.risk, (0, 0, 255))
+
+    # Banner background
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 32), (w, 62), color, -1)
+    frame[:] = cv2.addWeighted(overlay, 0.75, frame, 0.25, 0)
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    prefix = "!! FCW !!" if warning.risk == "CRITICAL" else "!! WARNING !!"
+    text = f"{prefix}  {warning.message}"
+    (tw, _), _ = cv2.getTextSize(text, font, 0.58, 1)
+    cv2.putText(frame, text, (w // 2 - tw // 2, 53),
+                font, 0.58, (255, 255, 255), 1, cv2.LINE_AA)
+
+    _draw_risk_panel(frame, warning)
+
+
+def _draw_risk_panel(frame: np.ndarray, warning) -> None:
+    """Small risk status panel — bottom centre."""
+    h, w = frame.shape[:2]
+    font     = cv2.FONT_HERSHEY_SIMPLEX
+    panel_w  = 220
+    panel_h  = 52
+    px = w // 2 - panel_w // 2
+    py = h - panel_h - 14
+
+    color = RISK_COLORS.get(warning.risk, (0, 200, 80))
+
+    frame[:] = _alpha_rect(frame, px, py, px + panel_w, py + panel_h,
+                           (20, 20, 20), 0.65)
+    cv2.rectangle(frame, (px, py), (px + panel_w, py + panel_h), color, 1)
+
+    cv2.putText(frame, "COLLISION RISK", (px + 8, py + 17),
+                font, 0.42, (150, 150, 150), 1, cv2.LINE_AA)
+    cv2.putText(frame, warning.risk, (px + 8, py + 38),
+                font, 0.65, color, 2, cv2.LINE_AA)
+
+    if warning.ttc < 99 and warning.active:
+        ttc_str = f"TTC: {warning.ttc:.1f}s"
+        (tw, _), _ = cv2.getTextSize(ttc_str, font, 0.48, 1)
+        cv2.putText(frame, ttc_str, (px + panel_w - tw - 8, py + 38),
+                    font, 0.48, color, 1, cv2.LINE_AA)
