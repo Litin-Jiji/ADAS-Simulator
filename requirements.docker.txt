@@ -1,0 +1,21 @@
+# Slim requirements for Docker (CPU only, no triton/CUDA)
+# Use requirements.txt locally with your GPU
+
+# Core vision
+opencv-python-headless>=4.9.0
+numpy>=1.24.0
+
+# Detection & tracking (CPU mode, skips triton)
+ultralytics>=8.3.0
+torch>=2.1.0 --index-url https://download.pytorch.org/whl/cpu
+torchvision>=0.16.0 --index-url https://download.pytorch.org/whl/cpu
+lapx>=0.5.5
+
+# API
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+websockets>=12.0
+
+# Utils
+scipy>=1.11.0

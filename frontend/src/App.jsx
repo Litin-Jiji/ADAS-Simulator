@@ -26,6 +26,7 @@ const RISK_COLORS = {
 function useWebSocket() {
   const [telemetry, setTelemetry]   = useState(null)
   const [connected, setConnected]   = useState(false)
+  const [frameData, setFrameData]   = useState(null)
   const wsRef = useRef(null)
 
   useEffect(() => {
@@ -36,14 +37,20 @@ function useWebSocket() {
       ws.onclose   = () => { setConnected(false); setTimeout(connect, 2000) }
       ws.onerror   = () => ws.close()
       ws.onmessage = (e) => {
-        try { setTelemetry(JSON.parse(e.data)) } catch {}
+        try {
+          const data = JSON.parse(e.data)
+          // Extract frame_data separately to avoid storing large base64 in telemetry state
+          const { frame_data, ...rest } = data
+          setTelemetry(rest)
+          if (frame_data) setFrameData(frame_data)
+        } catch {}
       }
     }
     connect()
     return () => wsRef.current?.close()
   }, [])
 
-  return { telemetry, connected }
+  return { telemetry, connected, frameData }
 }
 
 // ── Small components ────────────────────────────────────────────────────
@@ -85,6 +92,67 @@ function LaneStatusBadge({ status }) {
     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${color}`}>
       {status}
     </span>
+  )
+}
+
+// ── Live Video Feed ─────────────────────────────────────────────────────
+
+function LiveVideoFeed({ frameData, running }) {
+  const imgRef = useRef(null)
+
+  useEffect(() => {
+    if (frameData && imgRef.current) {
+      imgRef.current.src = `data:image/jpeg;base64,${frameData}`
+    }
+  }, [frameData])
+
+  return (
+    <div className="relative bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      {/* Corner decorations */}
+      <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-cyan-500 z-10 rounded-tl-xl" />
+      <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-cyan-500 z-10 rounded-tr-xl" />
+      <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-cyan-500 z-10 rounded-bl-xl" />
+      <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-cyan-500 z-10 rounded-br-xl" />
+
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-900/80 border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${running && frameData ? "bg-red-500 animate-pulse" : "bg-gray-600"}`} />
+          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">
+            {running && frameData ? "● Live Feed" : "Camera Feed"}
+          </p>
+        </div>
+        {running && frameData && (
+          <span className="text-xs text-cyan-400 font-mono">STREAMING</span>
+        )}
+      </div>
+
+      {/* Video frame */}
+      <div className="relative aspect-video bg-black flex items-center justify-center">
+        {frameData ? (
+          <img
+            ref={imgRef}
+            alt="ADAS Live Feed"
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-3 text-gray-600">
+            <svg className="w-16 h-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <p className="text-sm">
+              {running ? "Waiting for frames…" : "Click ▶ Start to begin processing"}
+            </p>
+          </div>
+        )}
+
+        {/* Scanline effect overlay */}
+        {frameData && (
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
+               style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 4px)" }} />
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -160,7 +228,7 @@ function ClassCountBar({ counts }) {
 // ── Main App ────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { telemetry, connected } = useWebSocket()
+  const { telemetry, connected, frameData } = useWebSocket()
   const [analytics, setAnalytics] = useState(null)
   const [running, setRunning]     = useState(false)
   const [source, setSource]       = useState("videos/dashcam2.mp4")
@@ -262,8 +330,13 @@ export default function App() {
           )}
         </section>
 
-        {/* ── Metric cards ── */}
-        <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {/* ── Live Video Feed ── */}
+        <section className="col-span-12 lg:col-span-8">
+          <LiveVideoFeed frameData={frameData} running={running} />
+        </section>
+
+        {/* ── Side metrics (beside video) ── */}
+        <div className="col-span-12 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 auto-rows-min">
           <MetricCard label="Active Tracks"  value={telemetry?.active_tracks ?? 0} color="text-cyan-400" />
           <MetricCard label="FPS"            value={telemetry?.fps ?? 0}           color="text-green-400" />
           <MetricCard label="Lane Status"    value={telemetry?.lane_status ?? "—"} color={telemetry?.lane_status === "Centered" ? "text-green-400" : "text-orange-400"} />
