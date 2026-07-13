@@ -12,30 +12,30 @@ ChartJS.register(
 )
 
 // ── Constants ───────────────────────────────────────────────────────────
-const WS_URL  = "ws://localhost:8000/ws"
-const API_URL = "http://localhost:8000"
+const WS_URL = "ws://localhost:8000/ws"
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
 const RISK_COLORS = {
-  LOW:      { bg: "#16a34a", text: "text-green-400",  border: "border-green-500" },
-  MEDIUM:   { bg: "#ca8a04", text: "text-yellow-400", border: "border-yellow-500" },
-  HIGH:     { bg: "#ea580c", text: "text-orange-400", border: "border-orange-500" },
-  CRITICAL: { bg: "#dc2626", text: "text-red-400",    border: "border-red-500" },
+  LOW: { bg: "#16a34a", text: "text-green-400", border: "border-green-500" },
+  MEDIUM: { bg: "#ca8a04", text: "text-yellow-400", border: "border-yellow-500" },
+  HIGH: { bg: "#ea580c", text: "text-orange-400", border: "border-orange-500" },
+  CRITICAL: { bg: "#dc2626", text: "text-red-400", border: "border-red-500" },
 }
 
 // ── Hooks ───────────────────────────────────────────────────────────────
 function useWebSocket() {
-  const [telemetry, setTelemetry]   = useState(null)
-  const [connected, setConnected]   = useState(false)
-  const [frameData, setFrameData]   = useState(null)
+  const [telemetry, setTelemetry] = useState(null)
+  const [connected, setConnected] = useState(false)
+  const [frameData, setFrameData] = useState(null)
   const wsRef = useRef(null)
 
   useEffect(() => {
     function connect() {
       const ws = new WebSocket(WS_URL)
       wsRef.current = ws
-      ws.onopen    = () => setConnected(true)
-      ws.onclose   = () => { setConnected(false); setTimeout(connect, 2000) }
-      ws.onerror   = () => ws.close()
+      ws.onopen = () => setConnected(true)
+      ws.onclose = () => { setConnected(false); setTimeout(connect, 2000) }
+      ws.onerror = () => ws.close()
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data)
@@ -43,7 +43,7 @@ function useWebSocket() {
           const { frame_data, ...rest } = data
           setTelemetry(rest)
           if (frame_data) setFrameData(frame_data)
-        } catch {}
+        } catch { }
       }
     }
     connect()
@@ -149,7 +149,7 @@ function LiveVideoFeed({ frameData, running }) {
         {/* Scanline effect overlay */}
         {frameData && (
           <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
-               style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 4px)" }} />
+            style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 4px)" }} />
         )}
       </div>
     </div>
@@ -209,7 +209,7 @@ function ClassCountBar({ counts }) {
     datasets: [{
       label: "Count",
       data: values,
-      backgroundColor: ["#4ade80","#f472b6","#fb923c","#818cf8","#34d399","#facc15"],
+      backgroundColor: ["#4ade80", "#f472b6", "#fb923c", "#818cf8", "#34d399", "#facc15"],
       borderRadius: 4,
     }]
   }
@@ -230,8 +230,8 @@ function ClassCountBar({ counts }) {
 export default function App() {
   const { telemetry, connected, frameData } = useWebSocket()
   const [analytics, setAnalytics] = useState(null)
-  const [running, setRunning]     = useState(false)
-  const [source, setSource]       = useState("videos/dashcam2.mp4")
+  const [running, setRunning] = useState(false)
+  const [source, setSource] = useState("videos/dashcam2.mp4")
   const fpsHistory = useRef([])
 
   // Keep rolling FPS history
@@ -248,7 +248,7 @@ export default function App() {
       try {
         const r = await fetch(`${API_URL}/api/analytics`)
         setAnalytics(await r.json())
-      } catch {}
+      } catch { }
     }, 3000)
     return () => clearInterval(id)
   }, [])
@@ -268,8 +268,8 @@ export default function App() {
     setRunning(false)
   }
 
-  const risk     = telemetry?.collision_risk ?? "LOW"
-  const riskCol  = RISK_COLORS[risk] ?? RISK_COLORS.LOW
+  const risk = telemetry?.collision_risk ?? "LOW"
+  const riskCol = RISK_COLORS[risk] ?? RISK_COLORS.LOW
   const isCritical = risk === "CRITICAL" && telemetry?.warning_active
 
   return (
@@ -337,11 +337,11 @@ export default function App() {
 
         {/* ── Side metrics (beside video) ── */}
         <div className="col-span-12 lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-3 auto-rows-min">
-          <MetricCard label="Active Tracks"  value={telemetry?.active_tracks ?? 0} color="text-cyan-400" />
-          <MetricCard label="FPS"            value={telemetry?.fps ?? 0}           color="text-green-400" />
-          <MetricCard label="Lane Status"    value={telemetry?.lane_status ?? "—"} color={telemetry?.lane_status === "Centered" ? "text-green-400" : "text-orange-400"} />
-          <MetricCard label="Lane Offset"    value={telemetry?.lane_offset ?? 0}   unit="cm" />
-          <MetricCard label="TTC"            value={telemetry?.ttc ? telemetry.ttc.toFixed(1) : "—"} unit="s" color="text-yellow-400" />
+          <MetricCard label="Active Tracks" value={telemetry?.active_tracks ?? 0} color="text-cyan-400" />
+          <MetricCard label="FPS" value={telemetry?.fps ?? 0} color="text-green-400" />
+          <MetricCard label="Lane Status" value={telemetry?.lane_status ?? "—"} color={telemetry?.lane_status === "Centered" ? "text-green-400" : "text-orange-400"} />
+          <MetricCard label="Lane Offset" value={telemetry?.lane_offset ?? 0} unit="cm" />
+          <MetricCard label="TTC" value={telemetry?.ttc ? telemetry.ttc.toFixed(1) : "—"} unit="s" color="text-yellow-400" />
           <MetricCard label="Total Vehicles" value={analytics?.total_vehicles ?? 0} color="text-purple-400" />
         </div>
 
@@ -374,10 +374,10 @@ export default function App() {
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Trip analytics</p>
           <div className="grid grid-cols-2 gap-3">
             {[
-              ["Near Misses",       analytics?.near_misses      ?? 0, "text-red-400"],
-              ["Lane Departures",   analytics?.lane_departures  ?? 0, "text-orange-400"],
-              ["High Risk Events",  analytics?.high_risk_events ?? 0, "text-yellow-400"],
-              ["Elapsed",           analytics ? `${analytics.elapsed_sec}s` : "—", "text-gray-300"],
+              ["Near Misses", analytics?.near_misses ?? 0, "text-red-400"],
+              ["Lane Departures", analytics?.lane_departures ?? 0, "text-orange-400"],
+              ["High Risk Events", analytics?.high_risk_events ?? 0, "text-yellow-400"],
+              ["Elapsed", analytics ? `${analytics.elapsed_sec}s` : "—", "text-gray-300"],
             ].map(([label, val, col]) => (
               <div key={label} className="bg-gray-800 rounded-lg p-3">
                 <p className="text-xs text-gray-500 mb-1">{label}</p>
