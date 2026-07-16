@@ -2,8 +2,8 @@
 
 A production-grade AI Driver Assistance System built with Python, YOLOv11, ByteTrack, Depth Anything V2, FastAPI, and React. Processes dashcam footage in real time across a full perception pipeline — detection, tracking, lane analysis, monocular depth estimation, and collision risk assessment — streamed live to a React analytics dashboard.
 
-> **Demo video:** _[Add your YouTube link here]_  
-> **Live dashboard:** _[Add your Azure URL here after deployment]_
+> **Demo video:** _[https://youtu.be/vMqTIfuiq6M]_  
+> **Live dashboard:** _[https://adas-simulator.vercel.app]_
 
 ---
 
