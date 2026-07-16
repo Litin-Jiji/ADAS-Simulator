@@ -127,6 +127,7 @@ yolo11n.pt
 node_modules/
 dist/
 dist-ssr/
+package-lock.json
 .env
 .env.local
 .env.development.local
