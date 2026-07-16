@@ -40,3 +40,4 @@ def test_stop_when_not_running():
     r = client.post("/api/stop")
     assert r.status_code == 200
     assert r.json()["status"] == "stopped"
+# erqafc
